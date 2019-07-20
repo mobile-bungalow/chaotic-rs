@@ -1,0 +1,20 @@
+[package]
+name = "chaotic-rs"
+version = "0.1.0"
+authors = ["mobile-bungalow <pwmay@ucsc.edu>"]
+edition = "2018"
+
+[dependencies]
+imgui = "0.1.0"
+glium = "0.25.1"
+glutin = "0.21.0"
+imgui-glium-renderer = "0.1.0"
+imgui-glutin-support = "0.0.21"
+cgmath = "0.17.0"
+meval = "0.2.0"
+rand = "0.7.0"
+
+
+
+
+
