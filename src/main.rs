@@ -32,6 +32,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let mut ds = DynamicSystem::new(display);
     let mut ui = Gui::new(ds.display.clone());
 
+    // identity matrix passed to shaders
     let uniforms = uniform! {
         matrix: [
             [1.0, 0.0, 0.0, 0.0],
@@ -50,7 +51,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
             if let glutin::Event::WindowEvent { event, .. } = event {
                 match event {
                     CloseRequested => exit = true,
-                    _ => {},
+                    _ => {}
                 }
             }
         });
@@ -63,19 +64,20 @@ fn main() -> Result<(), Box<std::error::Error>> {
         // type annotation hell
         let vs: glium::vertex::VerticesSource = ds.get_vertices().into();
 
-        ui.render(&mut surface, &ds);
-
         surface
             .draw(
                 vs,
                 &ds.get_indices(),
                 &program,
                 &uniforms,
-                &Default::default(),
+                &Default::default(), // Todo : set the draw parameters to be pretty
             )
             .unwrap();
 
+        ui.render(&mut surface, &ds);
+
         surface.finish()?;
+
         // i stole this.
         let now = Instant::now();
         let delta = now - last_frame;

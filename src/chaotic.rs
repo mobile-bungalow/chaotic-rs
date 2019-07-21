@@ -95,13 +95,13 @@ impl DynamicSystem {
         let mut temp = self.vert_deque.clone();
         //todo: Make this copy less memory
         temp.resize(
-            255,
+            MAX_BUFLEN,
             DynVertex {
                 position: [0.0, 0.0, 0.0],
                 color: [1.0, 1.0, 1.0],
             },
         );
-        let drain: Vec<DynVertex> = temp.drain(0..255).collect();
+        let drain: Vec<DynVertex> = temp.drain(0..MAX_BUFLEN).collect();
         self.vertex_buffer.write(&drain);
     }
 

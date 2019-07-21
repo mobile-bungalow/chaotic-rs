@@ -11,13 +11,18 @@ use imgui_glium_renderer::Renderer;
 
 use glutin::Event;
 
+use std::collections::HashMap;
 use std::time::Instant;
-
-// As a note to every other person who is looking at self
 // This package framework no longer supports glutin outside of
 // the winit framework. which is good, but not documented.
 // so use this crate instead of imgui_glutin_support
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
+
+struct StringCollection {
+    pub dx: ImString, // dx/dt
+    pub dy: ImString, // dy/dt
+    pub dz: ImString, // dz/dt
+}
 
 pub struct Gui {
     renderer: Renderer,
@@ -25,6 +30,7 @@ pub struct Gui {
     window: Rc<Display>, // this is shared with chaotic.rs
     last_frame: std::time::Instant,
     platform: WinitPlatform,
+    math_strings: StringCollection,
 }
 
 impl Gui {
@@ -44,17 +50,24 @@ impl Gui {
             platform.attach_window(imgui_c.io_mut(), &window, HiDpiMode::Rounded);
         }
 
+        let mut map = StringCollection {
+            dx: ImString::default(),
+            dy: ImString::default(),
+            dz: ImString::default(),
+        };
+
         Gui {
             renderer: imgui_renderer,
             context: imgui_c,
             window: display,
             last_frame: Instant::now(),
             platform: platform,
+            math_strings: map,
         }
 
     }
     // renders the UI, needs the dynamic system to display facts about it.
-    pub fn render(&mut self, f: &mut glium::Frame, dy_sys: &DynamicSystem) {
+    pub fn render(&mut self, f: &mut glium::Frame, _dy_sys: &DynamicSystem) {
 
         self.platform
             .prepare_frame(self.context.io_mut(), &*self.window.gl_window().window()) // step 4
@@ -62,12 +75,14 @@ impl Gui {
 
         self.last_frame = self.context.io_mut().update_delta_time(self.last_frame);
 
-        let ui: Ui = self.context.frame();
+        let ui = self.context.frame();
         //ui feature definitions
+
         ui.window(im_str!("User Configuration"))
             .size([300.0, 100.0], Condition::FirstUseEver)
             .build(|| {
-                ui.separator();
+                // todo, put this in an iterator            let mut map = StringCollection {
+  
             });
 
         let draw_data = ui.render();
@@ -86,12 +101,4 @@ impl Gui {
         );
     }
 
-    // should return a context for
-    // expressions to be evaluated in
-    // to calculate the current position and
-    // direction.
-    // pub fn get_expressions() {
-
-    //     unimplemented!();
-    // }
 }
