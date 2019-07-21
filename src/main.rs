@@ -9,6 +9,7 @@ use glium::*;
 use glutin::{ContextBuilder, EventsLoop, WindowBuilder};
 
 use std::time::Instant;
+
 mod chaotic;
 mod gui;
 
@@ -45,14 +46,14 @@ fn main() -> Result<(), Box<std::error::Error>> {
     loop {
 
         events_loop.poll_events(|event| {
+            ui.handle_events(&event);
             if let glutin::Event::WindowEvent { event, .. } = event {
                 match event {
                     CloseRequested => exit = true,
-                    _ => (),
+                    _ => {},
                 }
             }
         });
-
 
         let mut surface = ds.display.draw();
 
@@ -61,19 +62,20 @@ fn main() -> Result<(), Box<std::error::Error>> {
         ds.update_vertex_buffer();
         // type annotation hell
         let vs: glium::vertex::VerticesSource = ds.get_vertices().into();
-        ui.render();
 
-        let params = glium::DrawParameters {
-            line_width: Some(40000.0),
-            ..Default::default()
-        };
+        ui.render(&mut surface, &ds);
 
         surface
-            .draw(vs, &ds.get_indices(), &program, &uniforms, &params)
+            .draw(
+                vs,
+                &ds.get_indices(),
+                &program,
+                &uniforms,
+                &Default::default(),
+            )
             .unwrap();
 
         surface.finish()?;
-
         // i stole this.
         let now = Instant::now();
         let delta = now - last_frame;
