@@ -1,11 +1,11 @@
 use cgmath::{Point3, Vector3};
 
-use glium::vertex::VertexBufferSlice;
 use glium::*;
 use std::collections::VecDeque;
 
 use std::rc::Rc;
 //use meval::{Context, Expr};
+static MAX_BUFLEN: usize = 255usize;
 
 #[derive(Copy, Clone)]
 pub struct DynVertex {
@@ -21,7 +21,7 @@ pub struct DynamicSystem {
     pub display: Rc<backend::glutin::Display>,
     vert_deque: VecDeque<DynVertex>,
     location: Point3<f32>,
-    frequency: f32,
+    //frequency: f32,
     velocity: f32,
 }
 
@@ -29,19 +29,13 @@ impl DynamicSystem {
 
     pub fn new(window: glium::backend::glutin::Display) -> Self {
         DynamicSystem {
-            vertex_buffer: VertexBuffer::empty_dynamic(&window, 255usize)
+            vertex_buffer: VertexBuffer::empty_dynamic(&window, MAX_BUFLEN)
                 .expect("Vertex buffer failed"),
             display: Rc::new(window),
             direction: Vector3::new(0.0, 0.0, 0.0),
-            vert_deque: VecDeque::from(vec![
-                DynVertex {
-                    position: [0.0, 0.0, 0.0],
-                    color: [0.0, 0.0, 0.0]
-                };
-                255
-            ]),
+            vert_deque: VecDeque::new(),
             location: Point3::new(0.0, 0.0, 0.0),
-            frequency: 0.0,
+            //frequency: 0.0,
             velocity: 0.0,
         }
     }
@@ -59,7 +53,7 @@ impl DynamicSystem {
 
         let index_buffer = glium::IndexBuffer::new(
             &(*self.display),
-            glium::index::PrimitiveType::LineStrip,
+            glium::index::PrimitiveType::LinesList,
             &indices,
         )
         .unwrap();
@@ -72,11 +66,21 @@ impl DynamicSystem {
     }
     // pushes an updated point on to the dynamic system
     fn update_system(&mut self) {
-        let old = self.vert_deque.pop_front().unwrap().position;
-        self.vert_deque.push_back(DynVertex {
-            position: [0.01 + old[0], 0.01 + old[1], 0.0],
-            color: [1.0, 1.0, 1.0],
-        });
+        // todo: replace maxbuflen with user defined max shown steps
+        if self.vert_deque.len() >= MAX_BUFLEN {
+            let old = self.vert_deque.pop_front().unwrap().position;
+            self.vert_deque.push_back(DynVertex {
+                position: [0.01 + old[0], 0.01 + old[1], 0.0],
+                color: [1.0, 1.0, 1.0],
+            });
+        } else {
+            self.location += self.direction * self.velocity;
+            self.vert_deque.push_back(DynVertex {
+                position: [self.location.x, self.location.y, self.location.z],
+                color: [1.0, 1.0, 1.0],
+            });
+        }
+
     }
 
 
@@ -88,8 +92,17 @@ impl DynamicSystem {
                               //something like this to update all the color
                               // must be cloned or else it will pass it a mutible buffer
                               // that is constantly being resized. and it borks.
-        self.vertex_buffer
-            .write(self.vert_deque.clone().as_slices().0);
+        let mut temp = self.vert_deque.clone();
+        //todo: Make this copy less memory
+        temp.resize(
+            255,
+            DynVertex {
+                position: [0.0, 0.0, 0.0],
+                color: [1.0, 1.0, 1.0],
+            },
+        );
+        let drain: Vec<DynVertex> = temp.drain(0..255).collect();
+        self.vertex_buffer.write(&drain);
     }
 
 }
@@ -97,11 +110,11 @@ impl DynamicSystem {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    //    use super::*;
 
-    fn initialize_dummy() -> DynamicSystem {
-        unimplemented!();
-    }
+    // fn initialize_dummy() -> DynamicSystem {
+    //     unimplemented!();
+    // }
 
     #[test]
     fn update_buffer_valid() {
