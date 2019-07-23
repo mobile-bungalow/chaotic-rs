@@ -32,13 +32,15 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let mut ui = Gui::new(ds.display.clone());
 
     // identity matrix passed to shaders
+    // let scale: [[f64; 4]; 4] = cgmath::Matrix4::from_scale(0.01f64).into();
+    // todo: figure out how to pass this identity matrix
     let uniforms = uniform! {
-        matrix: [
-            [1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0f32]
-        ]
+        matrix:
+            [[0.01, 0.0, 0.0, 0.0],
+            [0.0, 0.01, 0.0, 0.0],
+            [0.0, 0.0, 0.01, 0.0],
+            [0.0, 0.0, 0.0, 0.01f64]],
+
     };
 
     let mut last_frame = Instant::now();
@@ -73,17 +75,17 @@ fn main() -> Result<(), Box<std::error::Error>> {
             )
             .unwrap();
 
-        ui.render(&mut surface, &ds);
+        ui.render(&mut surface, &mut ds);
 
         surface.finish()?;
 
         // i stole this.
         let now = Instant::now();
         let delta = now - last_frame;
-        let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
+        let delta_s = delta.as_secs() as f64 + delta.subsec_nanos() as f64 / 1_000_000_000.0;
         last_frame = now;
 
-        if delta_s < 1.0 / 60.0 {
+        if delta_s < 0.5 / 60.0 {
             std::thread::sleep(std::time::Duration::from_millis(
                 (1000.0 * (1.0 / 60.0)) as u64,
             ));

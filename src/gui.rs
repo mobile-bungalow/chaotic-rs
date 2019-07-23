@@ -1,14 +1,18 @@
+// TODO : clean up imports
+
 use glium::backend::glutin::Display;
 use std::rc::Rc;
 
 #[macro_use]
 use imgui::*;
 
-use crate::chaotic::DynamicSystem;
+use crate::chaotic::{DynamicSystem, ProgramState};
 use imgui_glium_renderer::Renderer;
 
 use glutin::Event;
 use std::time::Instant;
+
+
 // the winit framework. which is good, but not documented.
 // so use this crate instead of imgui_glutin_support
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -19,6 +23,11 @@ pub struct StringCollection {
     pub dz: ImString,                           // dz/dt
     pub fn_name_buffer: ImString, //holds function names before they are pushed onto expression vec
     pub expressions: Vec<(ImString, ImString)>, // funciton content, function name
+}
+
+enum GuiState {
+    Normal,
+    Error,
 }
 
 pub struct Gui {
@@ -67,62 +76,73 @@ impl Gui {
         }
 
     }
-    // renders the UI, needs the dynamic system to display facts about it.
-    pub fn render(&mut self, f: &mut glium::Frame, _dy_sys: &DynamicSystem) {
+    // 🍖 & 🥔
+    // renders the UI.
+    pub fn render(&mut self, f: &mut glium::Frame, dy_sys: &mut DynamicSystem) {
 
+        // pre rendering stuff from the boilerplate
         self.platform
-            .prepare_frame(self.context.io_mut(), &*self.window.gl_window().window()) // step 4
+            .prepare_frame(self.context.io_mut(), &*self.window.gl_window().window())
             .expect("Failed to prepare frame");
 
         self.last_frame = self.context.io_mut().update_delta_time(self.last_frame);
 
         let ui = self.context.frame();
-        //ui feature definitions
 
-        let it = ui.input_text(im_str!("dx/dt"), &mut self.math_strings.dx);
-        let it1 = ui.input_text(im_str!("dy/dt"), &mut self.math_strings.dy);
-        let it2 = ui.input_text(im_str!("dz/dt"), &mut self.math_strings.dz);
+        // ui feature definitions these are done outside of closure
+        // so that the closure does not have to borrow self, also clean code
+        let dx_input = ui.input_text(im_str!("dx/dt"), &mut self.math_strings.dx);
+        let dy_input = ui.input_text(im_str!("dy/dt"), &mut self.math_strings.dy);
+        let dz_input = ui.input_text(im_str!("dz/dt"), &mut self.math_strings.dz);
         let fn_name = ui.input_text(im_str!(""), &mut self.math_strings.fn_name_buffer);
 
-        let mut string_ref = Vec::new();
-        self.math_strings
+        // vector of tuples of the form: (expression holding c-string, fn label, index)
+        let string_label_pairs: Vec<_> = self
+            .math_strings
             .expressions
             .iter_mut()
             .enumerate()
-            .for_each(|(i, x)| {
-                // push tuple of index and ui element
-                string_ref.push((x, i));
-            });
+            .map(|(i, (string, label))| (string, label, i))
+            .collect();
 
-        let mut kill_me_vec = vec![false; string_ref.len()];
-        let mut push = false;
-        let mut start_stop_reset = (false, false, false); // *informercial voice* don't do this!!
+        // kill me vec contains a byte string indicating which of the
+        // expression fields to delete
+        let mut kill_me_vec = vec![false; string_label_pairs.len()];
+        let mut spawn_expr_field = false;
+
+        // this tuple controls program flow
+        // can't use dy sys state in the closure
+        let mut start_stop_reset = (false, false, false);
 
         ui.window(im_str!("User Configuration"))
             .size([350.0, 190.0], Condition::FirstUseEver)
             .build(|| {
-                push = ui.button(im_str!("add expression"), [150.0, 20.0]);
+                // the add expression button and fields
+                spawn_expr_field = ui.button(im_str!("add expression"), [150.0, 20.0]);
                 let dims = ui.get_item_rect_size(); // gets LAST draw size
                 ui.same_line(dims[0] + 20.0);
                 fn_name.build();
 
-                for text_field in string_ref {
-                    let bt = ImString::from(format!("X##{}", text_field.1));
-                    let field = ui.input_text((text_field.0).1.as_ref(), &mut (text_field.0).0);
+                // --- dynamically draws the new function buttons as spawned by the user
+                for (return_string, label, index) in string_label_pairs {
+                    let button_title = ImString::from(format!("X##{}", index));
+                    // the function field itself
+                    let field = ui.input_text(label.as_ref(), return_string);
                     field.build();
                     let dims = ui.get_item_rect_size();
                     ui.same_line(dims[0] + 20.0);
-                    kill_me_vec[text_field.1] = ui.button(bt.as_ref(), [20.0, 20.0]);
+                    // destruction button
+                    kill_me_vec[index] = ui.button(button_title.as_ref(), [20.0, 20.0]);
                 }
-
-                it2.build();
-                it1.build();
-                it.build();
+                // --- partial derivative input formulas
+                dx_input.build();
+                dy_input.build();
+                dz_input.build();
+                // --- white space and bar before bottom control flow buttons
                 ui.spacing();
                 ui.separator();
                 ui.spacing();
-
-
+                // --- bottom three control flow buttons
                 ui.group(|| {
                     start_stop_reset.0 = ui.button(im_str!("Start"), [80.0, 30.0]);
                     ui.same_line(90.0);
@@ -132,29 +152,49 @@ impl Gui {
                 });
             });
 
-        // can't use iterators because of borrowing
+        match (&dy_sys.state, start_stop_reset) {
+            // these three cases prevent redundant state changes
+            (ProgramState::Start, (true, _, _)) => {}
+            (ProgramState::Stopped, (_, true, _)) => {}
+            // these cases actually call their respective functions
+            (_, (true, _, _)) => {
+                if let Err(e) = dy_sys.resolve_system(&self.math_strings) {
+                    //TODO: Display errors somehow I'm lazy.
+                    print!("{}\n", e);
+                } else {
+                    dy_sys.start();
+                }
+            }
+            (_, (_, true, _)) => dy_sys.stop(),
+            (_, (_, _, true)) => dy_sys.reset(),
+            _ => {}
+        };
+
+        // kill all functions requested to be killed this cycle
         for (index, killed) in kill_me_vec.iter().cloned().enumerate() {
             if killed {
                 self.math_strings.expressions.remove(index);
             }
         }
 
-        if push {
-            // TODO: Complain here is the string is invalid
+        if spawn_expr_field {
             &self.math_strings.expressions.push((
                 ImString::new("Enter Expression Here"),
                 self.math_strings.fn_name_buffer.clone(),
             ));
             self.math_strings.fn_name_buffer = ImString::new("enter function name");
         }
+
+        // collect ui data
         let draw_data = ui.render();
 
         self.renderer
             .render(f, draw_data)
             .expect("could not render glium.");
+
     }
 
-    // forwards all events to IMGUI
+    // forwards all events to imGui
     pub fn handle_events(&mut self, event: &Event) {
         self.platform.handle_event(
             self.context.io_mut(),

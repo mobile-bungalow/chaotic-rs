@@ -1,3 +1,6 @@
+// TODO:
+// clean up imports (currently my formatter deletes things at random)
+
 use cgmath::{Point3, Vector3};
 
 use glium::*;
@@ -5,26 +8,35 @@ use std::collections::VecDeque;
 
 use crate::gui::StringCollection; // contains strings for math evaluation
 use std::rc::Rc;
-//use meval::{Context, Expr};
-static MAX_BUFLEN: usize = 255usize; // number of points to draw
+
+use mexprp::{Context, Expression};
+
+static MAX_BUFLEN: usize = 5000usize; // number of points to draw
+
+pub enum ProgramState {
+    Start,
+    Stopped,
+}
 
 #[derive(Copy, Clone)]
 pub struct DynVertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
+    pub position: [f64; 3],
+    pub color: [f64; 3],
 }
 implement_vertex!(DynVertex, position, color);
 
 
 pub struct DynamicSystem {
-    pub vertex_buffer: VertexBuffer<DynVertex>,
-    pub direction: Vector3<f32>,
+    pub state: ProgramState,
     pub display: Rc<backend::glutin::Display>,
+    pub difeq_ctx: Context<f64>,
+    direction: Vector3<f64>,
+    vertex_buffer: VertexBuffer<DynVertex>,
     vert_deque: VecDeque<DynVertex>,
-    location: Point3<f32>,
-    //frequency: f32,
-    start_stop_reset: (bool, bool, bool),
-    velocity: f32,
+    location: Point3<f64>,
+
+    //frequency: f64,
+    velocity: f64,
 }
 
 impl DynamicSystem {
@@ -34,12 +46,13 @@ impl DynamicSystem {
             vertex_buffer: VertexBuffer::empty_dynamic(&window, MAX_BUFLEN)
                 .expect("Vertex buffer failed"),
             display: Rc::new(window),
+            difeq_ctx: Context::new(),
             direction: Vector3::new(0.0, 0.0, 0.0),
             vert_deque: VecDeque::new(),
-            location: Point3::new(0.0, 0.0, 0.0),
-            start_stop_reset: (false, true, false),
+            location: Point3::new(0.1, 0.1, 0.1),
+            state: ProgramState::Stopped,
             //frequency: 0.0,
-            velocity: 0.0,
+            velocity: 0.0005,
         }
     }
     /// Computes the indices for the current deque
@@ -69,30 +82,64 @@ impl DynamicSystem {
     }
     // pushes an updated point on to the dynamic system
     fn update_system(&mut self) {
+
+        // set variable definitions
+        // self.difeq_ctx.set_var("x", self.location.x as f64);
+        // self.difeq_ctx.set_var("y", self.location.y as f64);
+        // self.difeq_ctx.set_var("z", self.location.z as f64);
+        // if let mexprp::Answer::Single(x) = Expression::parse_ctx("x + y", self.difeq_ctx.clone()).unwrap().eval().ok().unwrap() {
+        //     let x = x as f64;
+        // } else {
+        //     let x = 0.0;
+        // }
+        // let expr_y = Expression::parse_ctx("x(0.01 - z) - y", self.difeq_ctx.clone()).unwrap();
+        // let expr_z = Expression::parse_ctx("x*y - z", self.difeq_ctx.clone()).unwrap();
+        let next_x = self.location.x + self.velocity * 10.0 * (self.location.x + self.location.y);
+        let next_y = self.location.y
+            + self.velocity * ((self.location.x * (28.0 - self.location.z)) - self.location.y);
+        let next_z = self.location.z
+            + self.velocity * (self.location.x * self.location.y - self.location.z * 2.666666);
+
+        let current_pos = DynVertex {
+            position: [next_x, next_y, next_z],
+            color: [1.0, 1.0, 1.0],
+        };
+        self.location.x = next_x;
+        self.location.y = next_y;
+        self.location.z = next_z;
+
         // todo: replace maxbuflen with user defined max shown steps
-        if self.vert_deque.len() >= MAX_BUFLEN {
-            let old = self.vert_deque.pop_front().unwrap().position;
-            self.vert_deque.push_back(DynVertex {
-                position: [0.01 + old[0], 0.01 + old[1], 0.0],
-                color: [1.0, 1.0, 1.0],
-            });
-        } else {
-            self.location += self.direction * self.velocity;
-            self.vert_deque.push_back(DynVertex {
-                position: [self.location.x, self.location.y, self.location.z],
-                color: [1.0, 1.0, 1.0],
-            });
+        match self.state {
+            ProgramState::Stopped => return,
+            _ => {
+                if self.vert_deque.len() >= MAX_BUFLEN {
+                    self.vert_deque.pop_back();
+                    self.vert_deque.push_front(current_pos);
+                } else {
+                    self.vert_deque.push_front(current_pos);
+                }
+            }
         }
 
     }
     // starts a stopped (default), dynamic system
-    pub fn start(&mut self) {}
+    pub fn start(&mut self) {
+        self.state = ProgramState::Start;
+        print!("start\n");
+    }
 
     // freezes updates to the vertex buffer and dynamic system,
-    pub fn stop(&mut self) {}
+    pub fn stop(&mut self) {
+        self.state = ProgramState::Stopped;
+        print!("stop\n");
+    }
 
     // dumps vertex buffer, resets position to origin, and calls stop
-    pub fn reset(&mut self) {}
+    pub fn reset(&mut self) {
+        // do reset things
+        self.state = ProgramState::Stopped;
+        print!("reset\n");
+    }
 
     // updates the vertex buffer to accurately
     // reflect an updated dynamic system
@@ -116,7 +163,29 @@ impl DynamicSystem {
     }
     // attempts to resolve the
     // current system as valid or invalid
-    pub fn resolve_system() {}
+    pub fn resolve_system(
+        &self,
+        system: &StringCollection,
+    ) -> Result<(), mexprp::errors::ParseError> {
+
+        // let dx: Expression<f64> = Expression::parse(system.dx.to_str())?;
+        // let dx: Expression<f64> = Expression::parse(system.dy.to_str())?;
+        // let dz: Expression<f64> = Expression::parse(system.dz.to_str())?;
+
+
+        // TODO: Implement extra functions
+        // let fn_vec: &Vec<Expr> = &system
+        //     .expressions
+        //     .iter()
+        //     .map(|(_label, fn_body)| {
+        //         let ret_exp: Expr = fn_body.to_str().parse().unwrap();
+        //         ret_exp
+        //     })
+        //     .collect();
+
+        Ok(())
+
+    }
 }
 
 

@@ -11,7 +11,7 @@ glutin = "0.21.0"
 imgui-glium-renderer = "0.1.0"
 imgui-winit-support = "0.1.0"
 cgmath = "0.17.0"
-meval = "0.2.0"
+mexprp = "0.3.0"
 rand = "0.7.0"
 
 
