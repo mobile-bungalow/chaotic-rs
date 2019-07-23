@@ -4,25 +4,21 @@ use std::rc::Rc;
 #[macro_use]
 use imgui::*;
 
-use imgui::Ui;
-
 use crate::chaotic::DynamicSystem;
 use imgui_glium_renderer::Renderer;
 
 use glutin::Event;
-
-use std::collections::HashMap;
-
 use std::time::Instant;
 // the winit framework. which is good, but not documented.
 // so use this crate instead of imgui_glutin_support
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
-struct StringCollection {
-    pub dx: ImString, // dx/dt
-    pub dy: ImString, // dy/dt
-    pub dz: ImString, // dz/dt
-    pub expressions: Vec<ImString>,
+pub struct StringCollection {
+    pub dx: ImString,                           // dx/dt
+    pub dy: ImString,                           // dy/dt
+    pub dz: ImString,                           // dz/dt
+    pub fn_name_buffer: ImString, //holds function names before they are pushed onto expression vec
+    pub expressions: Vec<(ImString, ImString)>, // funciton content, function name
 }
 
 pub struct Gui {
@@ -56,6 +52,7 @@ impl Gui {
             dx: ImString::new("enter expression here."),
             dy: ImString::new("enter expression here."),
             dz: ImString::new("enter expression here."),
+            fn_name_buffer: ImString::new("enter function name"),
             expressions: Vec::new(),
         };
 
@@ -85,6 +82,7 @@ impl Gui {
         let it = ui.input_text(im_str!("dx/dt"), &mut self.math_strings.dx);
         let it1 = ui.input_text(im_str!("dy/dt"), &mut self.math_strings.dy);
         let it2 = ui.input_text(im_str!("dz/dt"), &mut self.math_strings.dz);
+        let fn_name = ui.input_text(im_str!(""), &mut self.math_strings.fn_name_buffer);
 
         let mut string_ref = Vec::new();
         self.math_strings
@@ -98,21 +96,21 @@ impl Gui {
 
         let mut kill_me_vec = vec![false; string_ref.len()];
         let mut push = false;
-
-        let mut start_stop_reset = (false, false, false); // wouldn't it be cool if this optimized into a bitstring!!
+        let mut start_stop_reset = (false, false, false); // *informercial voice* don't do this!!
 
         ui.window(im_str!("User Configuration"))
-            .size([300.0, 190.0], Condition::FirstUseEver)
+            .size([350.0, 190.0], Condition::FirstUseEver)
             .build(|| {
-
                 push = ui.button(im_str!("add expression"), [150.0, 20.0]);
+                let dims = ui.get_item_rect_size(); // gets LAST draw size
+                ui.same_line(dims[0] + 20.0);
+                fn_name.build();
 
                 for text_field in string_ref {
-                    let string = ImString::from(format!("fn ${}", text_field.1)); // todo, make these nameable
-                    let bt = ImString::from(format!("X##{}", text_field.1)); // todo, make these nameable
-                    let field = ui.input_text(string.as_ref(), text_field.0);
+                    let bt = ImString::from(format!("X##{}", text_field.1));
+                    let field = ui.input_text((text_field.0).1.as_ref(), &mut (text_field.0).0);
                     field.build();
-                    let dims = ui.get_item_rect_size(); // gets LAST draw size
+                    let dims = ui.get_item_rect_size();
                     ui.same_line(dims[0] + 20.0);
                     kill_me_vec[text_field.1] = ui.button(bt.as_ref(), [20.0, 20.0]);
                 }
@@ -142,10 +140,12 @@ impl Gui {
         }
 
         if push {
-            &self
-                .math_strings
-                .expressions
-                .push(ImString::new("Enter Expression Here"));
+            // TODO: Complain here is the string is invalid
+            &self.math_strings.expressions.push((
+                ImString::new("Enter Expression Here"),
+                self.math_strings.fn_name_buffer.clone(),
+            ));
+            self.math_strings.fn_name_buffer = ImString::new("enter function name");
         }
         let draw_data = ui.render();
 

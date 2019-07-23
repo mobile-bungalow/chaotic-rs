@@ -13,7 +13,6 @@ use std::time::Instant;
 mod chaotic;
 mod gui;
 
-
 use chaotic::DynamicSystem;
 use gui::Gui;
 

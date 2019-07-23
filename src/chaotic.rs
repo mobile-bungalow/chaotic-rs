@@ -3,9 +3,10 @@ use cgmath::{Point3, Vector3};
 use glium::*;
 use std::collections::VecDeque;
 
+use crate::gui::StringCollection; // contains strings for math evaluation
 use std::rc::Rc;
 //use meval::{Context, Expr};
-static MAX_BUFLEN: usize = 255usize;
+static MAX_BUFLEN: usize = 255usize; // number of points to draw
 
 #[derive(Copy, Clone)]
 pub struct DynVertex {
@@ -22,6 +23,7 @@ pub struct DynamicSystem {
     vert_deque: VecDeque<DynVertex>,
     location: Point3<f32>,
     //frequency: f32,
+    start_stop_reset: (bool, bool, bool),
     velocity: f32,
 }
 
@@ -35,6 +37,7 @@ impl DynamicSystem {
             direction: Vector3::new(0.0, 0.0, 0.0),
             vert_deque: VecDeque::new(),
             location: Point3::new(0.0, 0.0, 0.0),
+            start_stop_reset: (false, true, false),
             //frequency: 0.0,
             velocity: 0.0,
         }
@@ -111,7 +114,9 @@ impl DynamicSystem {
         let drain: Vec<DynVertex> = temp.drain(0..MAX_BUFLEN).collect();
         self.vertex_buffer.write(&drain);
     }
-
+    // attempts to resolve the
+    // current system as valid or invalid
+    pub fn resolve_system() {}
 }
 
 
