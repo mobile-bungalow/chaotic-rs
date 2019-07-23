@@ -82,7 +82,14 @@ impl DynamicSystem {
         }
 
     }
+    // starts a stopped (default), dynamic system
+    pub fn start(&mut self) {}
 
+    // freezes updates to the vertex buffer and dynamic system,
+    pub fn stop(&mut self) {}
+
+    // dumps vertex buffer, resets position to origin, and calls stop
+    pub fn reset(&mut self) {}
 
     // updates the vertex buffer to accurately
     // reflect an updated dynamic system

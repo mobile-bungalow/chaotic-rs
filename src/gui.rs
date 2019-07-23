@@ -12,8 +12,8 @@ use imgui_glium_renderer::Renderer;
 use glutin::Event;
 
 use std::collections::HashMap;
+
 use std::time::Instant;
-// This package framework no longer supports glutin outside of
 // the winit framework. which is good, but not documented.
 // so use this crate instead of imgui_glutin_support
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -22,6 +22,7 @@ struct StringCollection {
     pub dx: ImString, // dx/dt
     pub dy: ImString, // dy/dt
     pub dz: ImString, // dz/dt
+    pub expressions: Vec<ImString>,
 }
 
 pub struct Gui {
@@ -43,6 +44,7 @@ impl Gui {
 
         let imgui_renderer = Renderer::init(&mut imgui_c, &*display).unwrap();
 
+
         let mut platform = WinitPlatform::init(&mut imgui_c);
         {
             let gl_window = display.gl_window();
@@ -50,10 +52,11 @@ impl Gui {
             platform.attach_window(imgui_c.io_mut(), &window, HiDpiMode::Rounded);
         }
 
-        let mut map = StringCollection {
-            dx: ImString::default(),
-            dy: ImString::default(),
-            dz: ImString::default(),
+        let map = StringCollection {
+            dx: ImString::new("enter expression here."),
+            dy: ImString::new("enter expression here."),
+            dz: ImString::new("enter expression here."),
+            expressions: Vec::new(),
         };
 
         Gui {
@@ -63,6 +66,7 @@ impl Gui {
             last_frame: Instant::now(),
             platform: platform,
             math_strings: map,
+
         }
 
     }
@@ -78,13 +82,71 @@ impl Gui {
         let ui = self.context.frame();
         //ui feature definitions
 
-        ui.window(im_str!("User Configuration"))
-            .size([300.0, 100.0], Condition::FirstUseEver)
-            .build(|| {
-                // todo, put this in an iterator            let mut map = StringCollection {
-  
+        let it = ui.input_text(im_str!("dx/dt"), &mut self.math_strings.dx);
+        let it1 = ui.input_text(im_str!("dy/dt"), &mut self.math_strings.dy);
+        let it2 = ui.input_text(im_str!("dz/dt"), &mut self.math_strings.dz);
+
+        let mut string_ref = Vec::new();
+        self.math_strings
+            .expressions
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, x)| {
+                // push tuple of index and ui element
+                string_ref.push((x, i));
             });
 
+        let mut kill_me_vec = vec![false; string_ref.len()];
+        let mut push = false;
+
+        let mut start_stop_reset = (false, false, false); // wouldn't it be cool if this optimized into a bitstring!!
+
+        ui.window(im_str!("User Configuration"))
+            .size([300.0, 190.0], Condition::FirstUseEver)
+            .build(|| {
+
+                push = ui.button(im_str!("add expression"), [150.0, 20.0]);
+
+                for text_field in string_ref {
+                    let string = ImString::from(format!("fn ${}", text_field.1)); // todo, make these nameable
+                    let bt = ImString::from(format!("X##{}", text_field.1)); // todo, make these nameable
+                    let field = ui.input_text(string.as_ref(), text_field.0);
+                    field.build();
+                    let dims = ui.get_item_rect_size(); // gets LAST draw size
+                    ui.same_line(dims[0] + 20.0);
+                    kill_me_vec[text_field.1] = ui.button(bt.as_ref(), [20.0, 20.0]);
+                }
+
+                it2.build();
+                it1.build();
+                it.build();
+                ui.spacing();
+                ui.separator();
+                ui.spacing();
+
+
+                ui.group(|| {
+                    start_stop_reset.0 = ui.button(im_str!("Start"), [80.0, 30.0]);
+                    ui.same_line(90.0);
+                    start_stop_reset.1 = ui.button(im_str!("Stop"), [80.0, 30.0]);
+                    ui.same_line(180.0);
+                    start_stop_reset.2 = ui.button(im_str!("Reset"), [80.0, 30.0]);
+                });
+            });
+
+        // can't use iterators because of borrowing
+        for (index, killed) in kill_me_vec.iter().cloned().enumerate() {
+            if killed {
+                self.math_strings.expressions.remove(index);
+            }
+        }
+
+        if push {
+            &self
+                .math_strings
+                .expressions
+                .push(ImString::new("Enter Expression Here"));
+        }
         let draw_data = ui.render();
 
         self.renderer
