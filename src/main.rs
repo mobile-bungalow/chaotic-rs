@@ -1,6 +1,6 @@
+#![allow(clippy::cast_lossless)]
 
 #[macro_use]
-
 use glium::Display;
 //use glium::glutin::dpi::LogicalPosition;
 use glium::glutin::WindowEvent::*;
@@ -19,7 +19,7 @@ use gui::Gui;
 static VS: &str = include_str!("../shaders/chaos.vert.glsl");
 static FS: &str = include_str!("../shaders/chaos.frag.glsl");
 
-fn main() -> Result<(), Box<std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut events_loop = EventsLoop::new();
 
     let display = Display::new(WindowBuilder::new(), ContextBuilder::new(), &events_loop).unwrap();
@@ -46,13 +46,11 @@ fn main() -> Result<(), Box<std::error::Error>> {
     let mut last_frame = Instant::now();
 
     loop {
-
         events_loop.poll_events(|event| {
             ui.handle_events(&event);
             if let glutin::Event::WindowEvent { event, .. } = event {
-                match event {
-                    CloseRequested => exit = true,
-                    _ => {}
+                if let CloseRequested = event {
+                    exit = true
                 }
             }
         });
@@ -97,4 +95,3 @@ fn main() -> Result<(), Box<std::error::Error>> {
     }
     Ok(())
 }
-

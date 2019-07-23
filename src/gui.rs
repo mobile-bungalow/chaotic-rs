@@ -12,7 +12,6 @@ use imgui_glium_renderer::Renderer;
 use glutin::Event;
 use std::time::Instant;
 
-
 // the winit framework. which is good, but not documented.
 // so use this crate instead of imgui_glutin_support
 use imgui_winit_support::{HiDpiMode, WinitPlatform};
@@ -22,7 +21,7 @@ pub struct StringCollection {
     pub dy: ImString,                           // dy/dt
     pub dz: ImString,                           // dz/dt
     pub fn_name_buffer: ImString, //holds function names before they are pushed onto expression vec
-    pub expressions: Vec<(ImString, ImString)>, // funciton content, function name
+    pub expressions: Vec<(ImString, ImString)>, // function content, function name
 }
 
 enum GuiState {
@@ -40,15 +39,12 @@ pub struct Gui {
 }
 
 impl Gui {
-
     pub fn new(display: Rc<Display>) -> Self {
-
         let mut imgui_c = imgui::Context::create();
 
         imgui_c.set_ini_filename(None);
 
         let imgui_renderer = Renderer::init(&mut imgui_c, &*display).unwrap();
-
 
         let mut platform = WinitPlatform::init(&mut imgui_c);
         {
@@ -70,16 +66,13 @@ impl Gui {
             context: imgui_c,
             window: display,
             last_frame: Instant::now(),
-            platform: platform,
+            platform,
             math_strings: map,
-
         }
-
     }
     // 🍖 & 🥔
     // renders the UI.
     pub fn render(&mut self, f: &mut glium::Frame, dy_sys: &mut DynamicSystem) {
-
         // pre rendering stuff from the boilerplate
         self.platform
             .prepare_frame(self.context.io_mut(), &*self.window.gl_window().window())
@@ -160,7 +153,7 @@ impl Gui {
             (_, (true, _, _)) => {
                 if let Err(e) = dy_sys.resolve_system(&self.math_strings) {
                     //TODO: Display errors somehow I'm lazy.
-                    print!("{}\n", e);
+                    println!("{}", e);
                 } else {
                     dy_sys.start();
                 }
@@ -178,7 +171,7 @@ impl Gui {
         }
 
         if spawn_expr_field {
-            &self.math_strings.expressions.push((
+            self.math_strings.expressions.push((
                 ImString::new("Enter Expression Here"),
                 self.math_strings.fn_name_buffer.clone(),
             ));
@@ -191,7 +184,6 @@ impl Gui {
         self.renderer
             .render(f, draw_data)
             .expect("could not render glium.");
-
     }
 
     // forwards all events to imGui
@@ -202,5 +194,4 @@ impl Gui {
             &event,
         );
     }
-
 }

@@ -7,9 +7,8 @@ use glium::*;
 use std::collections::VecDeque;
 
 use crate::gui::StringCollection; // contains strings for math evaluation
+use mexprp::Context;
 use std::rc::Rc;
-
-use mexprp::{Context, Expression};
 
 static MAX_BUFLEN: usize = 500usize; // number of points to draw
 
@@ -25,7 +24,6 @@ pub struct DynVertex {
 }
 implement_vertex!(DynVertex, position, color);
 
-
 pub struct DynamicSystem {
     pub state: ProgramState,
     pub display: Rc<backend::glutin::Display>,
@@ -39,7 +37,6 @@ pub struct DynamicSystem {
 }
 
 impl DynamicSystem {
-
     pub fn new(window: glium::backend::glutin::Display) -> Self {
         DynamicSystem {
             vertex_buffer: VertexBuffer::empty_dynamic(&window, MAX_BUFLEN)
@@ -57,27 +54,21 @@ impl DynamicSystem {
     /// Computes the indices for the current deque
     /// is an immutable borrow so that it can be called in draw.
     pub fn get_indices(&self) -> glium::IndexBuffer<u16> {
-
         // builds the stuttering line pattern, 1,2,2,3,3,4 ...
         let mut len = self.vert_deque.len() as u16;
         len = if len > 0 { len } else { 1 };
         let mut indices: Vec<u16> = Vec::new();
-        (0..len - 1)
-            .into_iter()
-            .zip((1..len).into_iter())
-            .for_each(|(x, y)| {
-                indices.push(x);
-                indices.push(y)
-            });
+        (0..len - 1).zip(1..len).for_each(|(x, y)| {
+            indices.push(x);
+            indices.push(y)
+        });
 
-        let index_buffer = glium::IndexBuffer::new(
+        glium::IndexBuffer::new(
             &(*self.display),
             glium::index::PrimitiveType::LinesList,
             &indices,
         )
-        .unwrap();
-
-        index_buffer
+        .unwrap()
     }
 
     pub fn get_vertices(&self) -> glium::vertex::VertexBufferSlice<DynVertex> {
@@ -85,7 +76,6 @@ impl DynamicSystem {
     }
     // pushes an updated point on to the dynamic system
     fn update_system(&mut self) {
-
         // set variable definitions
         // self.difeq_ctx.set_var("x", self.location.x as f64);
         // self.difeq_ctx.set_var("y", self.location.y as f64);
@@ -104,7 +94,7 @@ impl DynamicSystem {
             + self.velocity * ((self.location.x * (28.0 - self.location.z)) - self.location.y);
 
         let next_z = self.location.z
-            + self.velocity * (self.location.x * self.location.y - self.location.z * 2.666666);
+            + self.velocity * (self.location.x * self.location.y - self.location.z * 2.666_666);
 
         let current_pos = DynVertex {
             position: [next_x, next_y, next_z],
@@ -116,7 +106,7 @@ impl DynamicSystem {
 
         // todo: replace maxbuflen with user defined max shown steps
         match self.state {
-            ProgramState::Stopped => return,
+            ProgramState::Stopped => {}
             _ => {
                 if self.vert_deque.len() >= MAX_BUFLEN {
                     self.vert_deque.pop_back();
@@ -126,31 +116,29 @@ impl DynamicSystem {
                 }
             }
         }
-
     }
     // starts a stopped (default), dynamic system
     pub fn start(&mut self) {
         self.state = ProgramState::Start;
-        print!("start\n");
+        println!("start");
     }
 
     // freezes updates to the vertex buffer and dynamic system,
     pub fn stop(&mut self) {
         self.state = ProgramState::Stopped;
-        print!("stop\n");
+        println!("stop");
     }
 
     // dumps vertex buffer, resets position to origin, and calls stop
     pub fn reset(&mut self) {
         // do reset things
         self.state = ProgramState::Stopped;
-        print!("reset\n");
+        println!("reset");
     }
 
     // updates the vertex buffer to accurately
     // reflect an updated dynamic system
     pub fn update_vertex_buffer(&mut self) {
-
         self.update_system(); //update the coordinates of the system
                               //something like this to update all the color
                               // must be cloned or else it will pass it a mutible buffer
@@ -171,13 +159,11 @@ impl DynamicSystem {
     // current system as valid or invalid
     pub fn resolve_system(
         &self,
-        system: &StringCollection,
+        _system: &StringCollection,
     ) -> Result<(), mexprp::errors::ParseError> {
-
         // let dx: Expression<f64> = Expression::parse(system.dx.to_str())?;
         // let dx: Expression<f64> = Expression::parse(system.dy.to_str())?;
         // let dz: Expression<f64> = Expression::parse(system.dz.to_str())?;
-
 
         // TODO: Implement extra functions
         // let fn_vec: &Vec<Expr> = &system
@@ -190,10 +176,8 @@ impl DynamicSystem {
         //     .collect();
 
         Ok(())
-
     }
 }
-
 
 #[cfg(test)]
 mod test {
