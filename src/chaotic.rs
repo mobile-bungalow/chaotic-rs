@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use mexprp::{Context, Expression};
 
-static MAX_BUFLEN: usize = 5000usize; // number of points to draw
+static MAX_BUFLEN: usize = 500usize; // number of points to draw
 
 pub enum ProgramState {
     Start,
@@ -34,7 +34,6 @@ pub struct DynamicSystem {
     vertex_buffer: VertexBuffer<DynVertex>,
     vert_deque: VecDeque<DynVertex>,
     location: Point3<f64>,
-
     //frequency: f64,
     velocity: f64,
 }
@@ -49,10 +48,10 @@ impl DynamicSystem {
             difeq_ctx: Context::new(),
             direction: Vector3::new(0.0, 0.0, 0.0),
             vert_deque: VecDeque::new(),
-            location: Point3::new(0.1, 0.1, 0.1),
+            location: Point3::new(1.0, 1.0, 1.0),
             state: ProgramState::Stopped,
             //frequency: 0.0,
-            velocity: 0.0005,
+            velocity: 0.001,
         }
     }
     /// Computes the indices for the current deque
@@ -62,10 +61,14 @@ impl DynamicSystem {
         // builds the stuttering line pattern, 1,2,2,3,3,4 ...
         let mut len = self.vert_deque.len() as u16;
         len = if len > 0 { len } else { 1 };
-        let indices: Vec<u16> = (0..len - 1)
+        let mut indices: Vec<u16> = Vec::new();
+        (0..len - 1)
             .into_iter()
-            .chain((1..len).into_iter())
-            .collect();
+            .zip((1..len).into_iter())
+            .for_each(|(x, y)| {
+                indices.push(x);
+                indices.push(y)
+            });
 
         let index_buffer = glium::IndexBuffer::new(
             &(*self.display),
@@ -94,9 +97,12 @@ impl DynamicSystem {
         // }
         // let expr_y = Expression::parse_ctx("x(0.01 - z) - y", self.difeq_ctx.clone()).unwrap();
         // let expr_z = Expression::parse_ctx("x*y - z", self.difeq_ctx.clone()).unwrap();
+
         let next_x = self.location.x + self.velocity * 10.0 * (self.location.x + self.location.y);
+
         let next_y = self.location.y
             + self.velocity * ((self.location.x * (28.0 - self.location.z)) - self.location.y);
+
         let next_z = self.location.z
             + self.velocity * (self.location.x * self.location.y - self.location.z * 2.666666);
 

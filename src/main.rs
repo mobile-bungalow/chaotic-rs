@@ -85,7 +85,7 @@ fn main() -> Result<(), Box<std::error::Error>> {
         let delta_s = delta.as_secs() as f64 + delta.subsec_nanos() as f64 / 1_000_000_000.0;
         last_frame = now;
 
-        if delta_s < 0.5 / 60.0 {
+        if delta_s < 1.0 / 60.0 {
             std::thread::sleep(std::time::Duration::from_millis(
                 (1000.0 * (1.0 / 60.0)) as u64,
             ));
